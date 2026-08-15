@@ -26,8 +26,8 @@ classifiers = [
 dev = ["ruff"]
 
 [project.urls]
-"Homepage" = "https://github.com/kanboard/python-api-client"
-"Bug Reports" = "https://github.com/kanboard/python-api-client/issues"
+"Homepage" = "https://github.com/siberaktif/kanboard-mcp-server"
+"Bug Reports" = "https://github.com/siberaktif/kanboard-mcp-server/issues"
 "Source" = "https://github.com/kanboard/python-api-client"
 
 [build-system]
