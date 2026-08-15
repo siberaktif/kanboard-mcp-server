@@ -16,3 +16,7 @@ __pycache__/
 .env
 .env
 uv.lock
+
+# Custom ignores
+.claude/
+_python-api-client-main/
