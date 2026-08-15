@@ -332,5 +332,8 @@ This project was built utilizing the following resources:
 - Kanboard API Reference: https://docs.kanboard.org/v1/api/
 - Base Kanboard Python Client: https://github.com/kanboard/python-api-client
 
+**MCP Server Implementation and Modifications by (MCP Sunucusu Geliştirme ve Düzenlemeler):**
+- Sencar Tosun (https://github.com/siberaktif)
+
 This project is licensed under the **MIT License**.
 
