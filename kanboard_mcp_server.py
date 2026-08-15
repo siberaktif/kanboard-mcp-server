@@ -6,8 +6,9 @@ Kanboard JSON-RPC API'sini MCP araçları olarak sunar.
 
 import json
 import requests
+import asyncio
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 # ================== KANBOARD YAPILANDIRMASI ==================
 KANBOARD_URL = "https://dedikanban.dedimetri.com/jsonrpc.php"
@@ -40,31 +41,34 @@ def kanboard_call(method: str, params: dict | None = None):
     return data.get("result")
 
 # ================== MCP SUNUCUSU ==================
-mcp = FastMCP("kanboard-mcp-server")
+mcp = MCPServer("kanboard-mcp-server")
 
 @mcp.tool()
-async def get_my_projects() -> str:
+def get_my_projects() -> str:
     """Kanboard'daki kendi projelerini listeler. Proje ID, isim ve açıklama döndürür."""
     projects = kanboard_call("getMyProjects")
     return json.dumps(projects, indent=2, ensure_ascii=False)
 
 @mcp.tool()
-async def get_tasks_by_project(project_id: int) -> str:
+def get_tasks_by_project(project_id: int) -> str:
     """Verilen proje ID'sindeki tüm görevleri getirir. Görevler; başlık, durum, atanan kişi gibi bilgileri içerir."""
     tasks = kanboard_call("getAllTasks", {"project_id": project_id})
     return json.dumps(tasks, indent=2, ensure_ascii=False)
 
 @mcp.tool()
-async def get_task_details(task_id: int) -> str:
+def get_task_details(task_id: int) -> str:
     """Belirli bir görevin tüm detaylarını getirir (başlık, açıklama, atanan, kategori, tarih vb.)."""
     task = kanboard_call("getTask", {"task_id": task_id})
     return json.dumps(task, indent=2, ensure_ascii=False)
 
 @mcp.tool()
-async def get_user_tasks() -> str:
+def get_user_tasks() -> str:
     """Şu anki API kullanıcısının gecikmiş görevlerini getirir."""
     tasks = kanboard_call("getOverdueTasks")
     return json.dumps(tasks, indent=2, ensure_ascii=False)
 
+async def main():
+    await mcp.run_stdio_async()
+
 if __name__ == "__main__":
-    mcp.run(transport='stdio')
+    asyncio.run(main())
