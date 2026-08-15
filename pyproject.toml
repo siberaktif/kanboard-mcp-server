@@ -2,7 +2,7 @@
 name = "kanboard"
 version = "1.1.8"
 description = "Python client library for Kanboard"
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=2.0.0",
@@ -39,3 +39,6 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+[tool.setuptools]
+py-modules = ["kanboard_mcp_server"]
