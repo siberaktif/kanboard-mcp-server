@@ -211,9 +211,25 @@ MCP Server
 
 This project also includes an MCP (Model Context Protocol) Server for Kanboard. The server exposes Kanboard API methods to LLMs acting as MCP clients.
 
-Configuration
--------------
-Create a `.env` file in the root directory based on `.env.example`. You can authenticate using your user mail/password or an API token.
+Installation and Running (Kurulum ve Çalıştırma)
+------------------------------------------------
+This server requires **Python 3.10+**.
+
+Ensure you have installed the required dependencies from ``requirements.txt``:
+
+.. code-block:: bash
+
+    pip install -r requirements.txt
+
+You can run and test the server in development mode using the MCP CLI:
+
+.. code-block:: bash
+
+    mcp dev kanboard_mcp_server.py
+
+Configuration (Yapılandırma)
+----------------------------
+Create a `.env` file in the root directory based on `.env.example`. **Never commit your `.env` file to version control.** Always use `.env.example` as a template for others.
 
 .. code-block:: bash
 
@@ -226,17 +242,57 @@ Variables in `.env`:
 - ``KANBOARD_PASSWORD``: Your Kanboard password
 - ``KANBOARD_API_TOKEN``: Your personal or system API token (takes precedence over password)
 
-Running the Server
-------------------
-Ensure you have installed the required dependencies from ``requirements.txt``:
+MCP Client Integration Guide (MCP İstemcisi Entegrasyon Rehberi)
+----------------------------------------------------------------
+The MCP server uses standard Input/Output (`stdio`) for communication. You can connect various AI clients to this server by configuring them to spawn this script.
+
+An example configuration file is provided in ``mcp.json.example``.
+
+**Standard Configuration Example (`mcp.json` / `claude_desktop_config.json`):**
+
+.. code-block:: json
+
+    {
+      "mcpServers": {
+        "kanboard": {
+          "command": "python",
+          "args": ["/path/to/kanboard_mcp_server.py"],
+          "env": {
+            "KANBOARD_URL": "https://www.dedikanban.dedimetri.com/jsonrpc.php",
+            "KANBOARD_USERMAIL": "kullanici@example.com",
+            "KANBOARD_API_TOKEN": "token_buraya"
+          }
+        }
+      }
+    }
+
+**Platform Specific Integration Instructions:**
+
+- **Claude Desktop:** Open your Claude Desktop settings, click on Developer -> Edit Config, and paste the configuration above into `claude_desktop_config.json`. Ensure the `args` path points to the absolute path of `kanboard_mcp_server.py`. Restart Claude Desktop. (Linux and Windows paths must be correctly formatted).
+- **Antigravity CLI & Hermes CLI:** Drop the `mcp.json` file into the appropriate configuration directory of the CLI or pass it via the `--mcp` flag depending on the documentation.
+- **VS Code (Copilot / Cline / Roo Code):** In your MCP settings for these extensions, add a new server using `stdio` transport. Provide `python` as the command and the absolute path to `kanboard_mcp_server.py` as the argument. Add the environment variables identically to the JSON above.
+- **OpenAI / ChatGPT:** Currently, ChatGPT supports custom GPT actions via OpenAPI specs, not direct MCP `stdio`. However, wrappers or local proxy tools can bridge MCP to a REST endpoint if needed.
+
+Publishing to GitHub / Git (GitHub'a Yükleme Adımları)
+------------------------------------------------------
+To upload this project to a new Git repository (e.g., GitHub or Forgejo), run:
 
 .. code-block:: bash
 
-    pip install -r requirements.txt
+    git init
+    git branch -m main
+    git add .
+    git commit -m "Initial commit for Kanboard MCP Server"
+    git remote add origin <YOUR_REPOSITORY_URL>
+    git push -u origin main
 
-Then run the server:
+*(Make sure your `.gitignore` includes `.env` so you do not accidentally expose your API tokens!)*
 
-.. code-block:: bash
+Credits and License (Kredi ve Lisans)
+-------------------------------------
+This project was built utilizing the following resources:
+- Kanboard API Reference: https://docs.kanboard.org/v1/api/
+- Base Kanboard Python Client: https://github.com/kanboard/python-api-client
 
-    python kanboard_mcp_server.py
+This project is licensed under the **MIT License**.
 

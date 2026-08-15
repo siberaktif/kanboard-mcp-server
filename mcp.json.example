@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "kanboard": {
+      "command": "python",
+      "args": ["kanboard_mcp_server.py"],
+      "env": {
+        "KANBOARD_URL": "https://www.dedikanban.dedimetri.com/jsonrpc.php",
+        "KANBOARD_USERMAIL": "kullanici@example.com",
+        "KANBOARD_API_TOKEN": "token_buraya"
+      }
+    }
+  }
+}
