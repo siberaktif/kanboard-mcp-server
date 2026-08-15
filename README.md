@@ -211,6 +211,18 @@ MCP Server
 
 This project also includes an MCP (Model Context Protocol) Server for Kanboard. The server exposes Kanboard API methods to LLMs acting as MCP clients.
 
+Available Automation Tools (Kullanılabilir Otomasyon Araçları)
+--------------------------------------------------------------
+The MCP server includes the following advanced automation tools out of the box (Gelişmiş otomasyon araçları varsayılan olarak sunucuda mevcuttur):
+
+- **create_subtask**: Tek bir alt görev oluşturur. / Creates a single subtask.
+- **create_bulk_subtasks**: Virgülle ayrılmış başlıklardan tek seferde çoklu alt görev oluşturur. / Creates multiple subtasks from a comma-separated string of titles.
+- **get_all_subtasks**: Bir görevin alt görevlerini listeler. / Lists all subtasks for a task.
+- **get_all_swimlanes**: Projedeki tüm kulvarları listeler. / Lists all swimlanes for a project.
+- **change_swimlane_position**: Kulvar sırasını değiştirir. / Changes the position of a swimlane.
+- **create_milestone**: Belirtilen tarih için sarı renkli kilometre taşı (milestone) görevi oluşturur. / Creates a milestone task (colored yellow) for a specific date.
+- **schedule_waterfall**: Bir görev listesini ardışık (şelale) olarak planlar ve alt görev eforuna göre tahmini süreyi otomatik hesaplar. / Schedules a list of tasks sequentially (waterfall) starting from a specific date.
+
 Installation and Running (Kurulum ve Çalıştırma)
 ------------------------------------------------
 This server requires **Python 3.10+**.

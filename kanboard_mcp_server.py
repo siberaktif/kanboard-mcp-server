@@ -293,6 +293,125 @@ def create_comment(task_id: int, user_id: int, content: str) -> str:
     return safe_execute(_execute)
 
 
+@mcp.tool()
+def get_all_subtasks(task_id: int) -> str:
+    """
+    Gets all subtasks for a given task.
+    Belirli bir görevin tüm alt görevlerini getirir.
+    """
+    return safe_execute(kanboard_call, "getAllSubtasks", {"task_id": task_id})
+
+@mcp.tool()
+def create_subtask(task_id: int, title: str, time_estimated: int = 0) -> str:
+    """
+    Creates a single subtask.
+    Tek bir alt görev oluşturur.
+    """
+    params = {"task_id": task_id, "title": title}
+    if time_estimated > 0:
+        params["time_estimated"] = time_estimated
+    def _execute():
+        res = kanboard_call("createSubtask", params)
+        return {"message": "Subtask created / Alt görev oluşturuldu", "subtask_id": res}
+    return safe_execute(_execute)
+
+@mcp.tool()
+def create_bulk_subtasks(task_id: int, titles_csv: str) -> str:
+    """
+    Creates multiple subtasks from a comma-separated string of titles.
+    Virgülle ayrılmış başlıklardan çoklu alt görev oluşturur.
+    Example: titles_csv="Subtask 1, Subtask 2"
+    """
+    titles = [t.strip() for t in titles_csv.split(",") if t.strip()]
+    def _execute():
+        ids = []
+        for title in titles:
+            ids.append(kanboard_call("createSubtask", {"task_id": task_id, "title": title}))
+        return {"message": f"{len(ids)} subtasks created / alt görev oluşturuldu", "ids": ids}
+    return safe_execute(_execute)
+
+@mcp.tool()
+def get_all_swimlanes(project_id: int) -> str:
+    """
+    Lists all swimlanes for a project.
+    Bir projeye ait tüm kulvarları (swimlanes) listeler.
+    """
+    return safe_execute(kanboard_call, "getAllSwimlanes", {"project_id": project_id})
+
+@mcp.tool()
+def change_swimlane_position(project_id: int, swimlane_id: int, position: int) -> str:
+    """
+    Changes the position of a swimlane.
+    Bir kulvarın (swimlane) sırasını (pozisyonunu) değiştirir.
+    """
+    params = {"project_id": project_id, "swimlane_id": swimlane_id, "position": position}
+    def _execute():
+        res = kanboard_call("changeSwimlanePosition", params)
+        return {"message": "Swimlane position changed / Kulvar sırası değişti" if res else "Failed / Başarısız"}
+    return safe_execute(_execute)
+
+@mcp.tool()
+def create_milestone(project_id: int, title: str, column_id: int, date_str: str) -> str:
+    """
+    Creates a milestone task (colored yellow) for a specific date.
+    Belirtilen tarih için sarı renkli bir kilometre taşı (milestone) görevi oluşturur.
+    date_str format: YYYY-MM-DD
+    """
+    params = {
+        "project_id": project_id,
+        "title": f"🚩 KİLOMETRE TAŞI: {title}",
+        "column_id": column_id,
+        "date_started": date_str,
+        "date_due": date_str,
+        "color_id": "yellow"
+    }
+    def _execute():
+        res = kanboard_call("createTask", params)
+        return {"message": "Milestone created / Kilometre taşı oluşturuldu", "task_id": res}
+    return safe_execute(_execute)
+
+@mcp.tool()
+def schedule_waterfall(task_ids_csv: str, start_date_str: str, hours_per_subtask: int = 4) -> str:
+    """
+    Schedules a list of tasks sequentially (waterfall) starting from start_date_str.
+    Updates time_estimated based on subtasks.
+    Bir görev listesini ardışık (şelale) olarak planlar. Alt görev sayısına göre tahmini süreyi hesaplar.
+    task_ids_csv: "748,749,750"
+    start_date_str: "2026-08-20"
+    """
+    import datetime
+    
+    try:
+        task_ids = [int(x.strip()) for x in task_ids_csv.split(",") if x.strip().isdigit()]
+        current_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except Exception as e:
+        return json.dumps({"error": f"Invalid format / Geçersiz format: {str(e)}"}, ensure_ascii=False)
+        
+    def _execute():
+        nonlocal current_date
+        results = []
+        for t_id in task_ids:
+            subtasks = kanboard_call("getAllSubtasks", {"task_id": t_id})
+            num_subtasks = len(subtasks) if subtasks else 1
+            total_hours = num_subtasks * hours_per_subtask
+            days_needed = num_subtasks
+            
+            start_fmt = current_date.strftime("%Y-%m-%d")
+            end_date = current_date + datetime.timedelta(days=max(days_needed - 1, 0))
+            end_fmt = end_date.strftime("%Y-%m-%d")
+            
+            if subtasks:
+                for st in subtasks:
+                    kanboard_call("updateSubtask", {"id": st["id"], "task_id": t_id, "time_estimated": hours_per_subtask})
+                    
+            kanboard_call("updateTask", {"id": t_id, "date_started": start_fmt, "date_due": end_fmt, "time_estimated": total_hours})
+            
+            results.append({"task_id": t_id, "start": start_fmt, "end": end_fmt, "total_hours": total_hours})
+            current_date = end_date + datetime.timedelta(days=1)
+            
+        return {"message": "Waterfall scheduling completed / Şelale planlama tamamlandı", "schedule": results}
+    return safe_execute(_execute)
+
 # ================== CLI COMMANDS / KOMUT SATIRI ==================
 async def main():
     parser = argparse.ArgumentParser(add_help=False)
