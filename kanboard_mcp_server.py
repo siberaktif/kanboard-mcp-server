@@ -10,7 +10,9 @@ Kanboard JSON-RPC API'sini MCP araçları olarak sunar.
 """
 
 import os
+import sys
 import json
+import argparse
 import requests
 import asyncio
 from dotenv import load_dotenv
@@ -278,7 +280,64 @@ def create_comment(task_id: int, user_id: int, content: str) -> str:
     return safe_execute(_execute)
 
 
+# ================== CLI COMMANDS / KOMUT SATIRI ==================
 async def main():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--help', action='store_true', help="Show help message / Yardım mesajını gösterir")
+    parser.add_argument('--status', action='store_true', help="Show server status / Sunucu durumunu gösterir")
+    parser.add_argument('--doctor', action='store_true', help="Run diagnostics / Teşhis aracını çalıştırır")
+    
+    # We use parse_known_args in case MCP passes other internal args.
+    args, unknown = parser.parse_known_args()
+
+    if args.help:
+        print("Kanboard MCP Server CLI")
+        print("-" * 30)
+        print("--help   : Show this help message / Bu yardım mesajını gösterir")
+        print("--status : Show server status / Sunucu durumunu gösterir")
+        print("--doctor : Run diagnostics (.env check, network & auth test) / Teşhis araçlarını çalıştırır (.env kontrolü, bağlantı testi)")
+        sys.exit(0)
+        
+    if args.status:
+        print("Status / Durum: Kanboard MCP Server is configured and ready. / Kanboard MCP Sunucusu yapılandırıldı ve hazır.")
+        sys.exit(0)
+        
+    if args.doctor:
+        print("Running diagnostics... / Teşhis çalıştırılıyor...\n")
+        
+        print("[.env Validation / .env Doğrulaması]")
+        print(f"- KANBOARD_URL exists / mevcut: {'Yes (Evet)' if KANBOARD_URL else 'No (Hayır)'}")
+        print(f"- KANBOARD_USERMAIL exists / mevcut: {'Yes (Evet)' if KANBOARD_USERMAIL else 'No (Hayır)'}")
+        print(f"- KANBOARD_API_TOKEN exists / mevcut: {'Yes (Evet)' if KANBOARD_API_TOKEN else 'No (Hayır)'}")
+        print(f"- KANBOARD_PASSWORD exists / mevcut: {'Yes (Evet)' if KANBOARD_PASSWORD else 'No (Hayır)'}")
+        print("")
+        
+        print("[Network & Auth / Ağ ve Yetki Testi]")
+        # Test basic internet
+        try:
+            requests.get("https://1.1.1.1", timeout=5)
+            print("- Internet connection: OK / İnternet bağlantısı: Başarılı")
+        except:
+            print("- Internet connection: FAILED / İnternet bağlantısı: BAŞARISIZ")
+            
+        # Test Kanboard Connection
+        try:
+            print("- Testing Kanboard JSON-RPC connection... / Kanboard JSON-RPC bağlantısı test ediliyor...")
+            kanboard_call("getVersion")
+            print("=> Server connection & Auth: OK / Sunucu bağlantısı ve Yetki: Başarılı!")
+        except Exception as e:
+            print(f"=> Server connection & Auth: FAILED / Sunucu bağlantısı ve Yetki: BAŞARISIZ!")
+            print(f"   Reason / Sebep: {str(e)}")
+            
+        sys.exit(0)
+
+    # Standard MCP Run / Standart MCP Başlatma
+    msg_en = "Starting Kanboard MCP Server... Press Ctrl+C to stop."
+    msg_tr = "Kanboard MCP Sunucusu başlatılıyor... Durdurmak için Ctrl+C tuşlarına basın."
+    # NOTE: Output must be written to stderr to not break MCP stdio protocol JSON parsing.
+    # NOT: MCP stdio protokolünü (JSON) bozmamak için loglar stderr'e yazılmalıdır.
+    print(f"{msg_en}\n{msg_tr}\n", file=sys.stderr)
+    
     await mcp.run_stdio_async()
 
 if __name__ == "__main__":

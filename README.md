@@ -215,6 +215,8 @@ Installation and Running (Kurulum ve Çalıştırma)
 ------------------------------------------------
 This server requires **Python 3.10+**.
 
+Running the Server / Sunucuyu Çalıştırma
+----------------------------------------
 Ensure you have installed the required dependencies from ``requirements.txt``:
 
 .. code-block:: bash
@@ -226,6 +228,24 @@ You can run and test the server in development mode using the MCP CLI:
 .. code-block:: bash
 
     mcp dev kanboard_mcp_server.py
+
+Command Line Options (Komut Satırı Seçenekleri)
+-----------------------------------------------
+The server script includes helpful built-in commands for debugging and status checks:
+
+.. code-block:: bash
+
+    # Show help message / Yardım mesajını gösterir
+    python kanboard_mcp_server.py --help
+
+    # Show server status / Sunucu durumunu gösterir
+    python kanboard_mcp_server.py --status
+
+    # Run diagnostics (checks .env and tests connection to Kanboard)
+    # Teşhis araçlarını çalıştırır (.env kontrolü, bağlantı testi)
+    python kanboard_mcp_server.py --doctor
+
+*(When run without any arguments, the script will output a startup message to `stderr` and begin listening on `stdio` for MCP protocol messages. / Argümansız çalıştırıldığında sunucu MCP protokolü için dinlemeye başlar.)*
 
 Configuration (Yapılandırma)
 ----------------------------
