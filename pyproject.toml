@@ -1,0 +1,36 @@
+[project]
+name = "kanboard"
+version = "1.1.8"
+description = "Python client library for Kanboard"
+readme = "README.rst"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["kanboard", "api", "client"]
+authors = [
+  { name = "Frédéric Guillot", email = "fred@kanboard.net" }
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.optional-dependencies]
+dev = ["ruff"]
+
+[project.urls]
+"Homepage" = "https://github.com/kanboard/python-api-client"
+"Bug Reports" = "https://github.com/kanboard/python-api-client/issues"
+"Source" = "https://github.com/kanboard/python-api-client"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
