@@ -2,18 +2,35 @@
 """
 Kanboard MCP Sunucusu
 Kanboard JSON-RPC API'sini MCP araçları olarak sunar.
+.env dosyasından yapılandırma ayarlarını yükler.
 """
 
+import os
 import json
 import requests
 import asyncio
+from dotenv import load_dotenv
 
 from mcp.server.mcpserver import MCPServer
 
-# ================== KANBOARD YAPILANDIRMASI ==================
-KANBOARD_URL = "https://dedikanban.dedimetri.com/jsonrpc.php"
-API_TOKEN = "12312db434d582512d6ba7180cefee218506095fb86cf49ad897776b05fd"   # <-- Kanboard API token'ını buraya koy
-USERNAME = "jsonrpc"                            # Kanboard API kullanıcı adı sabittir
+# ================== YAPILANDIRMA ==================
+# Çevresel değişkenleri yükle (.env dosyasından)
+load_dotenv()
+
+KANBOARD_URL = os.getenv("KANBOARD_URL", "https://dedikanban.dedimetri.com/jsonrpc.php")
+KANBOARD_USERNAME = os.getenv("KANBOARD_USERNAME", "jsonrpc")
+KANBOARD_PASSWORD = os.getenv("KANBOARD_PASSWORD", "")
+KANBOARD_API_TOKEN = os.getenv("KANBOARD_API_TOKEN", "")
+
+# Kanboard HTTP Basic Auth için doğrulama bilgilerini belirle
+# API Token önceliklidir (Kişisel Token veya Sistem Tokenı)
+if KANBOARD_API_TOKEN:
+    # Eğer username varsayılan 'jsonrpc' ise sistem tokenı gibi davranır. 
+    # Özel bir kullanıcı adı verilmişse, kullanıcının kişisel token'ı olarak işlem görür.
+    AUTH = (KANBOARD_USERNAME, KANBOARD_API_TOKEN)
+else:
+    # E-posta / Parola tabanlı yetkilendirme
+    AUTH = (KANBOARD_USERNAME, KANBOARD_PASSWORD)
 
 # ================== KANBOARD API ÇAĞRISI ==================
 def kanboard_call(method: str, params: dict | None = None):
@@ -33,17 +50,18 @@ def kanboard_call(method: str, params: dict | None = None):
         response = requests.post(
             KANBOARD_URL,
             json=payload,
-            auth=(USERNAME, API_TOKEN),
+            auth=AUTH,
             headers=headers,
             timeout=30
         )
         response.raise_for_status()  # HTTP hatası varsa fırlat
         data = response.json()
+        
         if "error" in data:
             error_data = data["error"]
             error_msg = str(error_data)
             
-            # Kanboard genelde yetkisiz erişimlerde Access Denied (Örn: 403) hatası döndürür.
+            # Kanboard genelde yetkisiz erişimlerde Access Denied hatası döndürür.
             if isinstance(error_data, dict) and error_data.get("message") == "Access Denied":
                 raise PermissionError("Bu projeye veya veriye erişim yetkiniz yok.")
             else:
@@ -73,7 +91,7 @@ mcp = MCPServer("kanboard-mcp-server")
 def get_my_projects() -> str:
     """
     Kanboard'daki kendi projelerini listeler. 
-    Kanboard API'si otomatik olarak sadece kullanıcının e-posta/kullanıcı ile yetkili olduğu projeleri döndürür.
+    Kullanıcıya özel yetkili (ve atanmış olunan) projeleri döndürür.
     """
     return safe_execute(kanboard_call, "getMyProjects")
 
@@ -102,17 +120,21 @@ def get_columns(project_id: int) -> str:
     """Bir projedeki pano sütunlarını listeler. Taşıma veya görev oluşturma işlemleri için ID'leri bulmayı sağlar."""
     return safe_execute(kanboard_call, "getColumns", {"project_id": project_id})
 
-@mcp.tool()
-def get_all_users() -> str:
-    """Kanboard üzerindeki tüm kullanıcıları listeler (Görev atamalarında user_id'leri bulmak için kullanılır)."""
-    return safe_execute(kanboard_call, "getAllUsers")
+# =========================================================================
+# GÜVENLİK NOTU: Tüm kullanıcıları listelemek, mevcut kullanıcının sadece 
+# yetkili olduğu projeler dışında sistemdeki herkesi görmesine yol açabilir. 
+# Bu sebeple bu araç varsayılan olarak devre dışı (yorum satırı) bırakılmıştır.
+#
+# @mcp.tool()
+# def get_all_users() -> str:
+#     """Kanboard üzerindeki tüm kullanıcıları listeler (Görev atamalarında user_id'leri bulmak için kullanılır)."""
+#     return safe_execute(kanboard_call, "getAllUsers")
+# =========================================================================
 
 @mcp.tool()
 def create_task(project_id: int, title: str, description: str = "", column_id: int = 0, owner_id: int = 0) -> str:
     """
-    Yeni görev oluşturur.
-    Zorunlu parametreler: project_id, title.
-    İsteğe bağlı: description, column_id (0 ise varsayılan), owner_id (0 ise kimseye atanmaz).
+    Yeni görev oluşturur. Sadece yetkili olduğunuz projelere görev oluşturabilirsiniz.
     """
     params = {
         "project_id": project_id,
