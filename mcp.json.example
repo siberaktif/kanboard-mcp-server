@@ -4,9 +4,9 @@
       "command": "python",
       "args": ["kanboard_mcp_server.py"],
       "env": {
-        "KANBOARD_URL": "https://www.dedikanban.dedimetri.com/jsonrpc.php",
-        "KANBOARD_USERMAIL": "kullanici@example.com",
-        "KANBOARD_API_TOKEN": "token_buraya"
+        "KANBOARD_URL": "https://your-kanboard-server.com/jsonrpc.php",
+        "KANBOARD_USERMAIL": "user@example.com",
+        "KANBOARD_USER_API_TOKEN": "your_personal_token_here"
       }
     }
   }

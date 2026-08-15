@@ -259,7 +259,7 @@ Create a `.env` file in the root directory based on `.env.example`. **Never comm
 
 Variables in `.env` (Değişkenler):
 
-- ``KANBOARD_URL``: The JSON-RPC endpoint (e.g. ``https://dedikanban.dedimetri.com/jsonrpc.php``)
+- ``KANBOARD_URL``: The JSON-RPC endpoint (e.g. ``https://your-kanboard-server.com/jsonrpc.php``)
 - ``KANBOARD_USERNAME``: Your Kanboard username (Kullanıcı adınız)
 - ``KANBOARD_USERMAIL``: Your Kanboard user email (Kullanıcı e-postanız)
 - ``KANBOARD_PASSWORD``: Your Kanboard password (Parolanız)
@@ -296,9 +296,9 @@ An example configuration file is provided in ``mcp.json.example``.
           "command": "python",
           "args": ["/path/to/kanboard_mcp_server.py"],
           "env": {
-            "KANBOARD_URL": "https://www.dedikanban.dedimetri.com/jsonrpc.php",
-            "KANBOARD_USERMAIL": "kullanici@example.com",
-            "KANBOARD_API_TOKEN": "token_buraya"
+            "KANBOARD_URL": "https://your-kanboard-server.com/jsonrpc.php",
+            "KANBOARD_USERMAIL": "user@example.com",
+            "KANBOARD_USER_API_TOKEN": "your_personal_token_here"
           }
         }
       }

@@ -24,7 +24,7 @@ from mcp.server.mcpserver import MCPServer
 # Çevresel değişkenleri yükle (.env dosyasından)
 load_dotenv()
 
-KANBOARD_URL = os.getenv("KANBOARD_URL", "https://dedikanban.dedimetri.com/jsonrpc.php")
+KANBOARD_URL = os.getenv("KANBOARD_URL", "https://your-kanboard-server.com/jsonrpc.php")
 
 # User Credentials (Kullanıcı Bilgileri)
 KANBOARD_USERNAME = os.getenv("KANBOARD_USERNAME", "")
