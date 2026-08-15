@@ -251,16 +251,34 @@ Configuration (Yapılandırma)
 ----------------------------
 Create a `.env` file in the root directory based on `.env.example`. **Never commit your `.env` file to version control.** Always use `.env.example` as a template for others.
 
+`.env.example` dosyasını kopyalayarak kök dizinde bir `.env` dosyası oluşturun. **`.env` dosyanızı asla Git gibi versiyon kontrol sistemlerine yüklemeyin.**
+
 .. code-block:: bash
 
     cp .env.example .env
 
-Variables in `.env`:
+Variables in `.env` (Değişkenler):
 
 - ``KANBOARD_URL``: The JSON-RPC endpoint (e.g. ``https://dedikanban.dedimetri.com/jsonrpc.php``)
-- ``KANBOARD_USERMAIL`` or ``KANBOARD_USERNAME``: Your user email or username
-- ``KANBOARD_PASSWORD``: Your Kanboard password
-- ``KANBOARD_API_TOKEN``: Your personal or system API token (takes precedence over password)
+- ``KANBOARD_USERNAME``: Your Kanboard username (Kullanıcı adınız)
+- ``KANBOARD_USERMAIL``: Your Kanboard user email (Kullanıcı e-postanız)
+- ``KANBOARD_PASSWORD``: Your Kanboard password (Parolanız)
+- ``KANBOARD_USER_API_TOKEN``: Personal API token from `/user/1/api` (Kişisel API Token)
+- ``KANBOARD_APP_USERNAME``: Application API username, defaults to `jsonrpc` (Uygulama Genel API Kullanıcısı)
+- ``KANBOARD_APP_API_TOKEN``: App-level API token from `/settings/api` (Genel Sistem Tokenı)
+
+**Authentication Priority / Bağlantı Önceliği:**
+The server determines the login credentials dynamically:
+- **Login User:** It uses `KANBOARD_USERNAME` as the default username. If it is empty, it falls back to `KANBOARD_USERMAIL`.
+- **User API Token:** If `KANBOARD_USER_API_TOKEN` is set, it connects using `auth=(login_user, KANBOARD_USER_API_TOKEN)`. (Recommended for all methods including `getMyProjects`).
+- **App API Token:** If `KANBOARD_APP_API_TOKEN` is set, it connects using `auth=(KANBOARD_APP_USERNAME, KANBOARD_APP_API_TOKEN)`. **Warning:** This method does not support user-specific endpoints like `getMyProjects`.
+- **Password:** If both tokens are empty, it connects using `auth=(login_user, KANBOARD_PASSWORD)`.
+
+Sunucu giriş bilgilerini dinamik olarak şu şekilde belirler:
+- **Giriş Kullanıcısı:** Varsayılan olarak `KANBOARD_USERNAME` kullanılır. Eğer boşsa, alternatif olarak `KANBOARD_USERMAIL` kullanılır.
+- **Kişisel Token:** `KANBOARD_USER_API_TOKEN` doluysa, `auth=(login_user, KANBOARD_USER_API_TOKEN)` kullanır. (`getMyProjects` vb. çalışması için bu önerilir).
+- **Uygulama Genel Token:** `KANBOARD_APP_API_TOKEN` doluysa, `auth=(KANBOARD_APP_USERNAME, KANBOARD_APP_API_TOKEN)` kullanılır. **Uyarı:** Genel API token'ı kişisel (My...) işlevleri desteklemez.
+- **Parola:** İki token de boşsa, `auth=(login_user, KANBOARD_PASSWORD)` kullanır.
 
 MCP Client Integration Guide (MCP İstemcisi Entegrasyon Rehberi)
 ----------------------------------------------------------------

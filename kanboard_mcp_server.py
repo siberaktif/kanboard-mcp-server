@@ -25,25 +25,38 @@ from mcp.server.mcpserver import MCPServer
 load_dotenv()
 
 KANBOARD_URL = os.getenv("KANBOARD_URL", "https://dedikanban.dedimetri.com/jsonrpc.php")
+
+# User Credentials (Kullanıcı Bilgileri)
+KANBOARD_USERNAME = os.getenv("KANBOARD_USERNAME", "")
 KANBOARD_USERMAIL = os.getenv("KANBOARD_USERMAIL", "")
-KANBOARD_USERNAME = os.getenv("KANBOARD_USERNAME", "jsonrpc")
 KANBOARD_PASSWORD = os.getenv("KANBOARD_PASSWORD", "")
-KANBOARD_API_TOKEN = os.getenv("KANBOARD_API_TOKEN", "")
+KANBOARD_USER_API_TOKEN = os.getenv("KANBOARD_USER_API_TOKEN", "")
+
+# App Credentials (Genel Sistem Bilgileri)
+KANBOARD_APP_USERNAME = os.getenv("KANBOARD_APP_USERNAME", "jsonrpc")
+KANBOARD_APP_API_TOKEN = os.getenv("KANBOARD_APP_API_TOKEN", "")
 
 # Determine credentials for Kanboard HTTP Basic Auth
-# If user email (USERMAIL) exists, it overrides USERNAME.
-# Kanboard HTTP Basic Auth için doğrulama bilgilerini belirle
-# Kullanıcı e-postası (USERMAIL) varsa USERNAME'i ezer.
-login_user = KANBOARD_USERMAIL if KANBOARD_USERMAIL else KANBOARD_USERNAME
+# Kullanıcı adı belirleme: KANBOARD_USERNAME öncelikli, boşsa KANBOARD_USERMAIL kullanılır.
+user_login = KANBOARD_USERNAME if KANBOARD_USERNAME else KANBOARD_USERMAIL
 
-# API Token takes precedence (Personal Token or System Token)
-# API Token önceliklidir (Kişisel Token veya Sistem Tokenı)
-if KANBOARD_API_TOKEN:
-    AUTH = (login_user, KANBOARD_API_TOKEN)
+# Auth Priority / Bağlantı Önceliği:
+# 1. User API Token (Personal) -> auth=(user_login, KANBOARD_USER_API_TOKEN)
+# 2. App API Token (Global) -> auth=(KANBOARD_APP_USERNAME, KANBOARD_APP_API_TOKEN)
+# 3. Password -> auth=(user_login, KANBOARD_PASSWORD)
+
+if user_login and KANBOARD_USER_API_TOKEN:
+    AUTH = (user_login, KANBOARD_USER_API_TOKEN)
+    auth_mode = "User API Token"
+elif KANBOARD_APP_API_TOKEN:
+    AUTH = (KANBOARD_APP_USERNAME, KANBOARD_APP_API_TOKEN)
+    auth_mode = "App API Token (Warning: 'My' methods like getMyProjects will fail)"
+elif user_login and KANBOARD_PASSWORD:
+    AUTH = (user_login, KANBOARD_PASSWORD)
+    auth_mode = "User Password"
 else:
-    # Email / Password based authentication
-    # E-posta / Parola tabanlı yetkilendirme
-    AUTH = (login_user, KANBOARD_PASSWORD)
+    AUTH = (KANBOARD_APP_USERNAME, '')
+    auth_mode = "None"
 
 # ================== KANBOARD API CALL / KANBOARD API ÇAĞRISI ==================
 def kanboard_call(method: str, params: dict | None = None):
@@ -307,12 +320,19 @@ async def main():
         
         print("[.env Validation / .env Doğrulaması]")
         print(f"- KANBOARD_URL exists / mevcut: {'Yes (Evet)' if KANBOARD_URL else 'No (Hayır)'}")
+        print(f"- KANBOARD_USERNAME exists / mevcut: {'Yes (Evet)' if KANBOARD_USERNAME else 'No (Hayır)'}")
         print(f"- KANBOARD_USERMAIL exists / mevcut: {'Yes (Evet)' if KANBOARD_USERMAIL else 'No (Hayır)'}")
-        print(f"- KANBOARD_API_TOKEN exists / mevcut: {'Yes (Evet)' if KANBOARD_API_TOKEN else 'No (Hayır)'}")
+        print(f"- KANBOARD_USER_API_TOKEN exists / mevcut: {'Yes (Evet)' if KANBOARD_USER_API_TOKEN else 'No (Hayır)'}")
+        print(f"- KANBOARD_APP_USERNAME exists / mevcut: {'Yes (Evet)' if KANBOARD_APP_USERNAME else 'No (Hayır)'}")
+        print(f"- KANBOARD_APP_API_TOKEN exists / mevcut: {'Yes (Evet)' if KANBOARD_APP_API_TOKEN else 'No (Hayır)'}")
         print(f"- KANBOARD_PASSWORD exists / mevcut: {'Yes (Evet)' if KANBOARD_PASSWORD else 'No (Hayır)'}")
         print("")
         
         print("[Network & Auth / Ağ ve Yetki Testi]")
+        print(f"- Selected Auth Mode / Seçilen Bağlantı Modu: {auth_mode}")
+        if auth_mode.startswith("App API Token"):
+            print("  ! WARNING: Application API does not support user-specific methods like getMyProjects or getOverdueTasks.")
+            print("  ! UYARI: Uygulama API'si (jsonrpc), kullanıcıya özel (getMyProjects, getOverdueTasks vb.) metodları desteklemez!")
         # Test basic internet
         try:
             requests.get("https://1.1.1.1", timeout=5)
