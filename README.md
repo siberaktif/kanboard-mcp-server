@@ -205,3 +205,38 @@ to ``create_project`` can be made asynchronous by calling ``create_project_async
 
 See the `official API documentation <https://docs.kanboard.org/v1/api/>`_ for the complete list of
 methods and arguments.
+
+MCP Server
+==========
+
+This project also includes an MCP (Model Context Protocol) Server for Kanboard. The server exposes Kanboard API methods to LLMs acting as MCP clients.
+
+Configuration
+-------------
+Create a `.env` file in the root directory based on `.env.example`. You can authenticate using your user mail/password or an API token.
+
+.. code-block:: bash
+
+    cp .env.example .env
+
+Variables in `.env`:
+
+- ``KANBOARD_URL``: The JSON-RPC endpoint (e.g. ``https://dedikanban.dedimetri.com/jsonrpc.php``)
+- ``KANBOARD_USERMAIL`` or ``KANBOARD_USERNAME``: Your user email or username
+- ``KANBOARD_PASSWORD``: Your Kanboard password
+- ``KANBOARD_API_TOKEN``: Your personal or system API token (takes precedence over password)
+
+Running the Server
+------------------
+Ensure you have installed the required dependencies from ``requirements.txt``:
+
+.. code-block:: bash
+
+    pip install -r requirements.txt
+
+Then run the server:
+
+.. code-block:: bash
+
+    python kanboard_mcp_server.py
+
