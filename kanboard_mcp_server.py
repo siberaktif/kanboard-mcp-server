@@ -196,7 +196,7 @@ def get_columns(project_id: int) -> str:
 # =========================================================================
 
 @mcp.tool()
-def create_task(project_id: int, title: str, description: str = "", column_id: int = 0, owner_id: int = 0) -> str:
+def create_task(project_id: int, title: str, description: str = "", column_id: int = 0, owner_id: int = 0, swimlane_id: int = 0) -> str:
     """
     Creates a new task. You can only create tasks in projects you are authorized for.
     Required parameters: project_id, title.
@@ -216,6 +216,8 @@ def create_task(project_id: int, title: str, description: str = "", column_id: i
         params["column_id"] = column_id
     if owner_id > 0:
         params["owner_id"] = owner_id
+    if swimlane_id > 0:
+        params["swimlane_id"] = swimlane_id
         
     def _execute():
         task_id = kanboard_call("createTask", params)
@@ -224,7 +226,7 @@ def create_task(project_id: int, title: str, description: str = "", column_id: i
     return safe_execute(_execute)
 
 @mcp.tool()
-def update_task(task_id: int, title: str = "", description: str = "", owner_id: int = 0, category_id: int = 0, score: int = 0) -> str:
+def update_task(task_id: int, title: str = "", description: str = "", owner_id: int = 0, category_id: int = 0, score: int = 0, swimlane_id: int = 0) -> str:
     """
     Updates an existing task.
     At least one field must be provided (title, description, owner_id, category_id, score, etc.).
@@ -243,6 +245,8 @@ def update_task(task_id: int, title: str = "", description: str = "", owner_id: 
         params["category_id"] = category_id
     if score > 0:
         params["score"] = score
+    if swimlane_id > 0:
+        params["swimlane_id"] = swimlane_id
         
     if len(params) == 1:
         return json.dumps({"error": "You must provide at least one field to update. / Güncellenecek en az bir alan sağlamalısınız."}, ensure_ascii=False)
@@ -254,7 +258,7 @@ def update_task(task_id: int, title: str = "", description: str = "", owner_id: 
     return safe_execute(_execute)
 
 @mcp.tool()
-def move_task_position(project_id: int, task_id: int, column_id: int, position: int = 1) -> str:
+def move_task_position(project_id: int, task_id: int, column_id: int, position: int = 1, swimlane_id: int = 0) -> str:
     """
     Moves a task to a specific column and position.
 
@@ -266,6 +270,8 @@ def move_task_position(project_id: int, task_id: int, column_id: int, position: 
         "column_id": column_id,
         "position": position
     }
+    if swimlane_id > 0:
+        params["swimlane_id"] = swimlane_id
     def _execute():
         result = kanboard_call("moveTaskPosition", params)
         return {"message": "Task moved / Görev taşındı" if result else "Task could not be moved / Görev taşınamadı", "result": result}

@@ -1,44 +1,19 @@
-[project]
-name = "kanboard"
-version = "1.1.8"
-description = "Python client library for Kanboard"
-readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "mcp>=2.0.0",
-    "requests",
-    "python-dotenv"
-]
-license = "MIT"
-license-files = ["LICENSE"]
-keywords = ["kanboard", "api", "client"]
-authors = [
-  { name = "Frédéric Guillot", email = "fred@kanboard.net" }
-]
-classifiers = [
-    "Intended Audience :: Developers",
-    "Intended Audience :: Information Technology",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3 :: Only",
-]
-
-[project.optional-dependencies]
-dev = ["ruff"]
-
-[project.urls]
-"Homepage" = "https://github.com/siberaktif/kanboard-mcp-server"
-"Bug Reports" = "https://github.com/siberaktif/kanboard-mcp-server/issues"
-"Source" = "https://github.com/kanboard/python-api-client"
-
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.ruff]
-line-length = 120
+[project]
+name = "kanboard-mcp-server"
+version = "0.1.0"
+description = "Model Context Protocol (MCP) server for Kanboard JSON-RPC API"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "mcp>=1.0.0"
+]
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I"]
-
-[tool.setuptools]
-py-modules = ["kanboard_mcp_server"]
+[project.scripts]
+kanboard-mcp = "kanboard_mcp_server:main"

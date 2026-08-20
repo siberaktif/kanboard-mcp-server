@@ -1,351 +1,38 @@
-==============================
-Python API Client for Kanboard
-==============================
+# Kanboard Python MCP Server & Automation Tools
 
-Client library for Kanboard API.
+This project provides a fully-featured **Model Context Protocol (MCP)** server for interacting with a Kanboard instance via its JSON-RPC API. It exposes Kanboard functionality directly to LLMs (like Claude, Antigravity, etc.).
 
-- Author: Frédéric Guillot
-- License: MIT
+Additionally, it contains a set of automation scripts for managing Kanboard projects (like swimlane management, AgileIndicators updates, and bulk task creation).
 
-Installation
-============
+## Features
 
-.. code-block:: bash
+- **MCP Server (`kanboard_mcp_server.py`)**: A native MCP server exposing Kanboard tools (`create_task`, `update_task`, `move_task_position`, `get_tasks`, etc.).
+- **Swimlane & Column Management**: Reorder swimlanes, rename default lanes, and move tasks efficiently.
+- **AgileIndicators Integration**: Apply Priority (P1-P5) and Complexity/Score (C0-C50) to your Kanboard tasks.
+- **Automated Task Sorting**: Reorder tasks in columns chronologically or by ID.
 
-    python3 -m pip install kanboard
+## Installation
 
+1. Clone this repository.
+2. Create a virtual environment: `python3 -m venv venv`
+3. Activate it: `source venv/bin/activate`
+4. Install dependencies: `pip install -r requirements.txt`
+5. Copy `.env.example` to `.env` and fill in your Kanboard credentials.
 
-- This library is compatible with Python >= 3.9.
+## Usage
 
-On Fedora (36 and later), you can install the package using DNF:
+### Running the MCP Server
+To use the server with an MCP client (like Antigravity or Claude Desktop):
+```bash
+python kanboard_mcp_server.py
+```
+*Note: MCP servers communicate over stdio, so you won't see terminal output directly unless you run with diagnostic flags.*
 
-.. code-block:: bash
+### Diagnostics
+Check if your `.env` configuration and Kanboard API connection are working:
+```bash
+python kanboard_mcp_server.py --doctor
+```
 
-    dnf install python3-kanboard
-
-
-Examples
-========
-
-Methods and arguments are the same as the JSON-RPC procedures described in the
-`official documentation <https://docs.kanboard.org/v1/api/>`_.
-
-Python methods are dynamically mapped to the API procedures: **You must use named arguments**.
-
-By default, calls are made synchronously, meaning that they will block the program until completed.
-
-Creating a new team project
----------------------------
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client("http://localhost/jsonrpc.php", "jsonrpc", "your_api_token") as kb:
-        project_id = kb.create_project(name="My project")
-
-
-Authenticate as user
---------------------
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client("http://localhost/jsonrpc.php", "admin", "secret") as kb:
-        kb.get_my_projects()
-
-Use a custom authentication header
------------------------------------
-
-If your Kanboard instance uses a custom authentication header
-(for example, ``define('API_AUTHENTICATION_HEADER', 'X-My-Custom-Auth-Header');``
-in your Kanboard configuration):
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client(url="http://localhost/jsonrpc.php",
-                         username="demo",
-                         password="secret",
-                         auth_header="X-My-Custom-Auth-Header") as kb:
-        kb.get_me()
-
-Create a new task
------------------
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client("http://localhost/jsonrpc.php", "jsonrpc", "your_api_token") as kb:
-        project_id = kb.create_project(name="My project")
-        task_id = kb.create_task(project_id=project_id, title="My task title")
-
-Use a personalized user agent
------------------------------
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client(url="http://localhost/jsonrpc.php",
-                         username="admin",
-                         password="secret",
-                         user_agent="My Kanboard client") as kb:
-        kb.get_my_projects()
-
-Request timeout
----------------
-
-By default, requests time out after 30 seconds. You can change this with the
-``timeout`` parameter (in seconds), or set it to ``None`` to disable the timeout:
-
-.. code-block:: python
-
-    import kanboard
-
-    # Custom 60-second timeout
-    with kanboard.Client(url="http://localhost/jsonrpc.php",
-                         username="admin",
-                         password="secret",
-                         timeout=60) as kb:
-        kb.get_my_projects()
-
-Error handling
---------------
-
-The client raises ``kanboard.ClientError`` for API errors, network failures,
-and malformed responses:
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client("http://localhost/jsonrpc.php", "jsonrpc", "your_api_token") as kb:
-        try:
-            kb.create_project(name="My project")
-        except kanboard.ClientError as e:
-            print(e)
-
-SSL connection and self-signed certificates
-===========================================
-
-Example with a valid certificate:
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client("https://example.org/jsonrpc.php", "admin", "secret") as kb:
-        kb.get_my_projects()
-
-Example with a custom certificate:
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client(url="https://example.org/jsonrpc.php",
-                         username="admin",
-                         password="secret",
-                         cafile="/path/to/my/cert.pem") as kb:
-        kb.get_my_projects()
-
-Example with a custom certificate and hostname mismatch:
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client(url="https://example.org/jsonrpc.php",
-                         username="admin",
-                         password="secret",
-                         cafile="/path/to/my/cert.pem",
-                         ignore_hostname_verification=True) as kb:
-        kb.get_my_projects()
-
-.. warning::
-
-    Setting ``insecure=True`` disables all certificate validation and hostname
-    checks, making your application vulnerable to man-in-the-middle (MitM) attacks:
-
-.. code-block:: python
-
-    import kanboard
-
-    with kanboard.Client(url="https://example.org/jsonrpc.php",
-                         username="admin",
-                         password="secret",
-                         insecure=True) as kb:
-        kb.get_my_projects()
-
-Asynchronous I/O
-================
-
-The client also exposes async/await style method calls. Similarly to the synchronous calls (see above),
-the method names are mapped to the API methods.
-
-To invoke an asynchronous call, the method name must be appended with ``_async``. For example, a synchronous call
-to ``create_project`` can be made asynchronous by calling ``create_project_async`` instead.
-
-.. code-block:: python
-
-    import asyncio
-    import kanboard
-
-    async def main():
-        with kanboard.Client("http://localhost/jsonrpc.php", "jsonrpc", "your_api_token") as kb:
-            project_id = await kb.create_project_async(name="My project")
-            print(project_id)
-
-    asyncio.run(main())
-
-
-See the `official API documentation <https://docs.kanboard.org/v1/api/>`_ for the complete list of
-methods and arguments.
-
-MCP Server
-==========
-
-This project also includes an MCP (Model Context Protocol) Server for Kanboard. The server exposes Kanboard API methods to LLMs acting as MCP clients.
-
-Available Automation Tools (Kullanılabilir Otomasyon Araçları)
---------------------------------------------------------------
-The MCP server includes the following advanced automation tools out of the box (Gelişmiş otomasyon araçları varsayılan olarak sunucuda mevcuttur):
-
-- **create_subtask**: Tek bir alt görev oluşturur. / Creates a single subtask.
-- **create_bulk_subtasks**: Virgülle ayrılmış başlıklardan tek seferde çoklu alt görev oluşturur. / Creates multiple subtasks from a comma-separated string of titles.
-- **get_all_subtasks**: Bir görevin alt görevlerini listeler. / Lists all subtasks for a task.
-- **get_all_swimlanes**: Projedeki tüm kulvarları listeler. / Lists all swimlanes for a project.
-- **change_swimlane_position**: Kulvar sırasını değiştirir. / Changes the position of a swimlane.
-- **create_milestone**: Belirtilen tarih için sarı renkli kilometre taşı (milestone) görevi oluşturur. / Creates a milestone task (colored yellow) for a specific date.
-- **schedule_waterfall**: Bir görev listesini ardışık (şelale) olarak planlar ve alt görev eforuna göre tahmini süreyi otomatik hesaplar. / Schedules a list of tasks sequentially (waterfall) starting from a specific date.
-
-Installation and Running (Kurulum ve Çalıştırma)
-------------------------------------------------
-This server requires **Python 3.10+**.
-
-Running the Server / Sunucuyu Çalıştırma
-----------------------------------------
-Ensure you have installed the required dependencies from ``requirements.txt``:
-
-.. code-block:: bash
-
-    pip install -r requirements.txt
-
-You can run and test the server in development mode using the MCP CLI:
-
-.. code-block:: bash
-
-    mcp dev kanboard_mcp_server.py
-
-Command Line Options (Komut Satırı Seçenekleri)
------------------------------------------------
-The server script includes helpful built-in commands for debugging and status checks:
-
-.. code-block:: bash
-
-    # Show help message / Yardım mesajını gösterir
-    python kanboard_mcp_server.py --help
-
-    # Show server status / Sunucu durumunu gösterir
-    python kanboard_mcp_server.py --status
-
-    # Run diagnostics (checks .env and tests connection to Kanboard)
-    # Teşhis araçlarını çalıştırır (.env kontrolü, bağlantı testi)
-    python kanboard_mcp_server.py --doctor
-
-*(When run without any arguments, the script will output a startup message to `stderr` and begin listening on `stdio` for MCP protocol messages. / Argümansız çalıştırıldığında sunucu MCP protokolü için dinlemeye başlar.)*
-
-Configuration (Yapılandırma)
-----------------------------
-Create a `.env` file in the root directory based on `.env.example`. **Never commit your `.env` file to version control.** Always use `.env.example` as a template for others.
-
-`.env.example` dosyasını kopyalayarak kök dizinde bir `.env` dosyası oluşturun. **`.env` dosyanızı asla Git gibi versiyon kontrol sistemlerine yüklemeyin.**
-
-.. code-block:: bash
-
-    cp .env.example .env
-
-Variables in `.env` (Değişkenler):
-
-- ``KANBOARD_URL``: The JSON-RPC endpoint (e.g. ``https://your-kanboard-server.com/jsonrpc.php``)
-- ``KANBOARD_USERNAME``: Your Kanboard username (Kullanıcı adınız)
-- ``KANBOARD_USERMAIL``: Your Kanboard user email (Kullanıcı e-postanız)
-- ``KANBOARD_PASSWORD``: Your Kanboard password (Parolanız)
-- ``KANBOARD_USER_API_TOKEN``: Personal API token from `/user/1/api` (Kişisel API Token)
-- ``KANBOARD_APP_USERNAME``: Application API username, defaults to `jsonrpc` (Uygulama Genel API Kullanıcısı)
-- ``KANBOARD_APP_API_TOKEN``: App-level API token from `/settings/api` (Genel Sistem Tokenı)
-
-**Authentication Priority / Bağlantı Önceliği:**
-The server determines the login credentials dynamically:
-- **Login User:** It uses `KANBOARD_USERNAME` as the default username. If it is empty, it falls back to `KANBOARD_USERMAIL`.
-- **User API Token:** If `KANBOARD_USER_API_TOKEN` is set, it connects using `auth=(login_user, KANBOARD_USER_API_TOKEN)`. (Recommended for all methods including `getMyProjects`).
-- **App API Token:** If `KANBOARD_APP_API_TOKEN` is set, it connects using `auth=(KANBOARD_APP_USERNAME, KANBOARD_APP_API_TOKEN)`. **Warning:** This method does not support user-specific endpoints like `getMyProjects`.
-- **Password:** If both tokens are empty, it connects using `auth=(login_user, KANBOARD_PASSWORD)`.
-
-Sunucu giriş bilgilerini dinamik olarak şu şekilde belirler:
-- **Giriş Kullanıcısı:** Varsayılan olarak `KANBOARD_USERNAME` kullanılır. Eğer boşsa, alternatif olarak `KANBOARD_USERMAIL` kullanılır.
-- **Kişisel Token:** `KANBOARD_USER_API_TOKEN` doluysa, `auth=(login_user, KANBOARD_USER_API_TOKEN)` kullanır. (`getMyProjects` vb. çalışması için bu önerilir).
-- **Uygulama Genel Token:** `KANBOARD_APP_API_TOKEN` doluysa, `auth=(KANBOARD_APP_USERNAME, KANBOARD_APP_API_TOKEN)` kullanılır. **Uyarı:** Genel API token'ı kişisel (My...) işlevleri desteklemez.
-- **Parola:** İki token de boşsa, `auth=(login_user, KANBOARD_PASSWORD)` kullanır.
-
-MCP Client Integration Guide (MCP İstemcisi Entegrasyon Rehberi)
-----------------------------------------------------------------
-The MCP server uses standard Input/Output (`stdio`) for communication. You can connect various AI clients to this server by configuring them to spawn this script.
-
-An example configuration file is provided in ``mcp.json.example``.
-
-**Standard Configuration Example (`mcp.json` / `claude_desktop_config.json`):**
-
-.. code-block:: json
-
-    {
-      "mcpServers": {
-        "kanboard": {
-          "command": "python",
-          "args": ["/path/to/kanboard_mcp_server.py"],
-          "env": {
-            "KANBOARD_URL": "https://your-kanboard-server.com/jsonrpc.php",
-            "KANBOARD_USERMAIL": "user@example.com",
-            "KANBOARD_USER_API_TOKEN": "your_personal_token_here"
-          }
-        }
-      }
-    }
-
-**Platform Specific Integration Instructions:**
-
-- **Claude Desktop:** Open your Claude Desktop settings, click on Developer -> Edit Config, and paste the configuration above into `claude_desktop_config.json`. Ensure the `args` path points to the absolute path of `kanboard_mcp_server.py`. Restart Claude Desktop. (Linux and Windows paths must be correctly formatted).
-- **Antigravity CLI & Hermes CLI:** Drop the `mcp.json` file into the appropriate configuration directory of the CLI or pass it via the `--mcp` flag depending on the documentation.
-- **VS Code (Copilot / Cline / Roo Code):** In your MCP settings for these extensions, add a new server using `stdio` transport. Provide `python` as the command and the absolute path to `kanboard_mcp_server.py` as the argument. Add the environment variables identically to the JSON above.
-- **OpenAI / ChatGPT:** Currently, ChatGPT supports custom GPT actions via OpenAPI specs, not direct MCP `stdio`. However, wrappers or local proxy tools can bridge MCP to a REST endpoint if needed.
-
-Publishing to GitHub / Git (GitHub'a Yükleme Adımları)
-------------------------------------------------------
-To upload this project to a new Git repository (e.g., GitHub or Forgejo), run:
-
-.. code-block:: bash
-
-    git init
-    git branch -m main
-    git add .
-    git commit -m "Initial commit for Kanboard MCP Server"
-    git remote add origin <YOUR_REPOSITORY_URL>
-    git push -u origin main
-
-*(Make sure your `.gitignore` includes `.env` so you do not accidentally expose your API tokens!)*
-
-Credits and License (Kredi ve Lisans)
--------------------------------------
-This project was built utilizing the following resources:
-- Kanboard API Reference: https://docs.kanboard.org/v1/api/
-- Base Kanboard Python Client: https://github.com/kanboard/python-api-client
-
-**MCP Server Implementation and Modifications by (MCP Sunucusu Geliştirme ve Düzenlemeler):**
-- Sencar Tosun (https://github.com/siberaktif)
-
-This project is licensed under the **MIT License**.
-
+### Automation Scripts
+Check the `scripts/` directory for ready-to-use Python scripts that automate common Kanboard workflows (e.g., bulk reordering, applying agile metrics).
