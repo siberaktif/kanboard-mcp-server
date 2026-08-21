@@ -418,6 +418,195 @@ def schedule_waterfall(task_ids_csv: str, start_date_str: str, hours_per_subtask
         return {"message": "Waterfall scheduling completed / Şelale planlama tamamlandı", "schedule": results}
     return safe_execute(_execute)
 
+@mcp.tool()
+def get_project_master_map(project_id: int) -> str:
+    """
+    Aggregates project metadata, active tasks, and project files into a single context map for Agent Swarm.
+
+    Context Aggregator for Kanboard — fetches project metadata, active tasks, and
+    documentation files in one call to provide full project context to agents.
+
+    Kanboard icin Baglam Toplayici — proje meta verilerini, aktif gorevleri ve
+    dokumantasyon dosyalarini tek cagrida birlestirerek ajanlara tam proje baglami saglar.
+
+    Args:
+        project_id (int): Kanboard project ID / Kanboard proje IDsi.
+
+    Returns:
+        JSON string with keys: project, active_tasks, project_files, markdown_docs, summary
+        (and optional errors for partial failures). Returns structured error JSON if
+        project_id is invalid or project not found.
+    """
+    if isinstance(project_id, bool) or not isinstance(project_id, int):
+        return json.dumps({"error": f"Invalid project_id type: expected int, got {type(project_id).__name__}"}, ensure_ascii=False)
+    if project_id <= 0:
+        return json.dumps({"error": f"Invalid project_id: must be positive integer, got {project_id}"}, ensure_ascii=False)
+
+    errors: list[str] = []
+    project_data: dict | None = None
+    active_tasks: list[dict] = []
+    project_files: list[dict] = []
+    markdown_docs: list[dict] = []
+    column_map: dict[str, str] = {}
+
+    # a) Fetch project metadata via getProjectById
+    try:
+        raw_project = kanboard_call("getProjectById", {"project_id": project_id})
+        if not raw_project:
+            return json.dumps({"error": f"Project {project_id} not found"}, ensure_ascii=False)
+        pid_val = raw_project.get("id", project_id)
+        try:
+            pid_int = int(pid_val)
+        except Exception:
+            pid_int = project_id
+        is_active_raw = raw_project.get("is_active", raw_project.get("isActive", "1"))
+        if isinstance(is_active_raw, str):
+            is_active = is_active_raw == "1"
+        elif isinstance(is_active_raw, bool):
+            is_active = is_active_raw
+        else:
+            try:
+                is_active = int(is_active_raw) == 1
+            except Exception:
+                is_active = bool(is_active_raw)
+        project_data = {
+            "id": pid_int,
+            "name": raw_project.get("name", ""),
+            "is_active": is_active,
+            "description": raw_project.get("description", ""),
+        }
+    except PermissionError as pe:
+        return json.dumps({"error": str(pe)}, ensure_ascii=False)
+    except Exception as e:
+        msg = str(e)
+        if "not found" in msg.lower() or "Access Denied" in msg:
+            return json.dumps({"error": f"Project {project_id} not found: {msg}"}, ensure_ascii=False)
+        return json.dumps({"error": f"Failed to fetch project {project_id}: {msg}"}, ensure_ascii=False)
+
+    # b) Fetch all tasks via getAllTasks, filter is_active == 1 (handles "1"/"0" strings)
+    try:
+        raw_tasks = kanboard_call("getAllTasks", {"project_id": project_id})
+        if raw_tasks is None:
+            raw_tasks = []
+        if not isinstance(raw_tasks, list):
+            errors.append(f"getAllTasks returned unexpected type: {type(raw_tasks).__name__}")
+            raw_tasks = []
+        try:
+            raw_columns = kanboard_call("getColumns", {"project_id": project_id})
+            if isinstance(raw_columns, list):
+                for col in raw_columns:
+                    cid = str(col.get("id", ""))
+                    title = col.get("title", col.get("name", ""))
+                    if cid:
+                        column_map[cid] = title
+        except Exception as ce:
+            errors.append(f"getColumns failed: {str(ce)}")
+        for t in raw_tasks:
+            is_active_val = t.get("is_active", "1")
+            try:
+                active_flag = str(is_active_val) == "1" or int(is_active_val) == 1
+            except Exception:
+                active_flag = bool(is_active_val)
+            if not active_flag:
+                continue
+            try:
+                tid = int(t.get("id", 0))
+            except Exception:
+                continue
+            col_name = t.get("column_name") or t.get("column_title") or ""
+            if not col_name:
+                cid = str(t.get("column_id", ""))
+                col_name = column_map.get(cid, cid)
+            assignee = (
+                t.get("assignee_name")
+                or t.get("assignee_username")
+                or t.get("assignee")
+                or t.get("owner_name")
+                or t.get("owner_username")
+                or t.get("username")
+                or t.get("user_name")
+            )
+            if not assignee:
+                oid = t.get("owner_id", t.get("ownerId", 0))
+                assignee = oid if oid not in (None, "") else 0
+                try:
+                    assignee = int(assignee)
+                except Exception:
+                    pass
+                if assignee == 0 or assignee == "0":
+                    assignee = None
+            active_tasks.append({
+                "id": tid,
+                "title": t.get("title", ""),
+                "column_name": col_name,
+                "assignee": assignee,
+            })
+    except PermissionError as pe:
+        errors.append(f"getAllTasks permission error: {str(pe)}")
+    except Exception as e:
+        errors.append(f"getAllTasks failed: {str(e)}")
+
+    # c) Fetch attachments via getAllProjectFiles (fallback to getProjectFiles)
+    try:
+        raw_files = None
+        last_file_error = None
+        for method_name in ["getAllProjectFiles", "getProjectFiles"]:
+            try:
+                raw_files = kanboard_call(method_name, {"project_id": project_id})
+                if isinstance(raw_files, list):
+                    break
+                if raw_files is None:
+                    raw_files = []
+                    break
+            except Exception as fe:
+                last_file_error = str(fe)
+                if "Method not found" in last_file_error or "not found" in last_file_error.lower():
+                    continue
+                if "Access Denied" in last_file_error or "permission" in last_file_error.lower():
+                    raise
+                continue
+        if raw_files is None:
+            if last_file_error:
+                errors.append(f"getAllProjectFiles failed: {last_file_error}")
+            raw_files = []
+        if not isinstance(raw_files, list):
+            errors.append(f"getAllProjectFiles returned unexpected type: {type(raw_files).__name__}")
+            raw_files = []
+        for f in raw_files:
+            fid_raw = f.get("id", f.get("file_id", f.get("fileId", 0)))
+            try:
+                fid = int(fid_raw)
+            except Exception:
+                fid = fid_raw
+            fname = f.get("name", f.get("filename", f.get("original_filename", f.get("file_name", ""))))
+            is_md = isinstance(fname, str) and fname.lower().endswith(".md")
+            entry: dict = {"id": fid, "name": fname, "is_markdown": is_md}
+            if "size" in f:
+                entry["size"] = f["size"]
+            if "date" in f:
+                entry["date"] = f["date"]
+            project_files.append(entry)
+        markdown_docs = [pf for pf in project_files if pf.get("is_markdown")]
+    except PermissionError as pe:
+        errors.append(f"getAllProjectFiles permission error: {str(pe)}")
+    except Exception as e:
+        errors.append(f"getAllProjectFiles failed: {str(e)}")
+
+    result: dict = {
+        "project": project_data,
+        "active_tasks": active_tasks,
+        "project_files": project_files,
+        "markdown_docs": markdown_docs,
+        "summary": {
+            "active_task_count": len(active_tasks),
+            "total_files": len(project_files),
+            "markdown_count": len(markdown_docs),
+        },
+    }
+    if errors:
+        result["errors"] = errors
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
 # ================== CLI COMMANDS / KOMUT SATIRI ==================
 async def main():
     parser = argparse.ArgumentParser(add_help=False)
