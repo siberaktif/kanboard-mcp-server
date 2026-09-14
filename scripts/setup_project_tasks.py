@@ -172,7 +172,7 @@ def main():
         if first_date is None: first_date = date_started_str
         last_date = date_due_str
         
-        desc_md = f"**Otantik Forgejo Tarihçesi**\n\n{body}\n\n* Commit: {commit_hash}\n* Unix Timestamp: {commit_epoch}"
+        desc_md = f"**Otantik Forgejo Tarihçesi**\n\n{body}\n\n* **Commit:** `{commit_hash}`\n* 🔗 [Yerel (Forgejo) Üzerinde İncele]({f_link})\n* 🔗 [Uzak (GitHub) Üzerinde İncele]({g_link})\n* Unix Timestamp: {commit_epoch}"
         ref = f"commit:{commit_hash}"
         
         task_id, is_new = upsert_task(
