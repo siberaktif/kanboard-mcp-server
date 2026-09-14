@@ -676,3 +676,54 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+@mcp.tool()
+def create_external_task_link(task_id: int, url: str, dependency: str, type: str = "weblink", title: str = "") -> str:
+    """
+    Creates an external link for a task.
+    Required: task_id, url, dependency (e.g. "related").
+    """
+    try:
+        res = kanboard_call("createExternalTaskLink", {
+            "task_id": task_id,
+            "url": url,
+            "dependency": dependency,
+            "type": type,
+            "title": title
+        })
+        if res:
+            return f"Success: External link created with ID {res}"
+        return "Failed to create external link"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def create_task_link(task_id: int, opposite_task_id: int, link_id: int) -> str:
+    """
+    Creates a link between two tasks.
+    link_id: 1 (relates to), 2 (blocks), 3 (is blocked by), etc.
+    """
+    try:
+        res = kanboard_call("createTaskLink", {
+            "task_id": task_id,
+            "opposite_task_id": opposite_task_id,
+            "link_id": link_id
+        })
+        if res:
+            return f"Success: Task link created with ID {res}"
+        return "Failed to create task link"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@mcp.tool()
+def close_task(task_id: int) -> str:
+    """
+    Closes a task (sets is_active to 0).
+    """
+    try:
+        res = kanboard_call("closeTask", {"task_id": task_id})
+        if res:
+            return f"Success: Task {task_id} closed"
+        return f"Failed to close task {task_id}"
+    except Exception as e:
+        return f"Error: {str(e)}"

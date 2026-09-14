@@ -34,25 +34,42 @@ def main():
 
     project_id = args.project_id
 
-    print(f"Clearing old tasks in Project {project_id}...")
+    # 1. Fetch existing tasks and map references
+    print("Mapping existing tasks by reference for Upsert logic...")
+    existing_tasks = {}
     for status in [1, 0]:
         tasks = rpc_call("getAllTasks", project_id=project_id, status_id=status)
         if tasks:
             for t in tasks:
-                rpc_call("removeTask", task_id=t['id'])
+                if t.get('reference'):
+                    existing_tasks[t['reference']] = t['id']
+
+    def upsert_task(ref, **kwargs):
+        if ref in existing_tasks:
+            task_id = existing_tasks[ref]
+            # Sadece güncelle (dosyaları veya bağlantıları silmemek için)
+            rpc_call("updateTask", id=task_id, title=kwargs['title'], description=kwargs['description'], color_id=kwargs['color_id'], score=kwargs['score'], priority=kwargs['priority'], date_started=kwargs['date_started'], date_due=kwargs['date_due'])
+            return task_id, False
+        else:
+            task_id = rpc_call("createTask", reference=ref, **kwargs)
+            return task_id, True
 
     prev_task_id = 0
-    count = 0
+    count_new = 0
+    count_updated = 0
 
     # Phase 0 Tasks
     if args.memory_dir and os.path.isdir(args.memory_dir):
-        print("Creating Phase 0 (AI Memory) tasks...")
+        print("Processing Phase 0 (AI Memory) tasks...")
         
         # Phase 0.1
         t1_start = datetime(2026, 8, 28, 10, 0)
         t1_end = datetime(2026, 8, 30, 18, 0)
-        t1_id = rpc_call(
-            "createTask", project_id=project_id,
+        t1_ref = "phase0:gemini"
+        
+        t1_id, t1_is_new = upsert_task(
+            t1_ref,
+            project_id=project_id,
             title="Görev 00.1: Konsept, İhtiyaç Analizi ve Fizibilite (Gemini İstişaresi)",
             description="Çoklu proje verilerinin tekilleştirilmesi, Glassmorphism yönetici paneli hedefleri.",
             color_id="purple", score=10, priority=3,
@@ -61,20 +78,26 @@ def main():
             creator_id=1, owner_id=1
         )
         if t1_id:
-            count += 1
-            f1_path = os.path.join(args.memory_dir, "gemini_fizibilite_raporu.md")
-            if os.path.isfile(f1_path):
-                with open(f1_path, "rb") as f:
-                    b64_content = base64.b64encode(f.read()).decode('ascii')
-                rpc_call("createTaskFile", project_id=project_id, task_id=t1_id, filename="gemini_fizibilite_raporu.md", blob=b64_content)
-            rpc_call("closeTask", task_id=t1_id)
+            if t1_is_new:
+                count_new += 1
+                f1_path = os.path.join(args.memory_dir, "gemini_fizibilite_raporu.md")
+                if os.path.isfile(f1_path):
+                    with open(f1_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode('ascii')
+                    rpc_call("createTaskFile", project_id=project_id, task_id=t1_id, filename="gemini_fizibilite_raporu.md", blob=b64)
+                rpc_call("closeTask", task_id=t1_id)
+            else:
+                count_updated += 1
             prev_task_id = t1_id
 
         # Phase 0.2
         t2_start = datetime(2026, 8, 31, 9, 0)
         t2_end = datetime(2026, 8, 31, 18, 0)
-        t2_id = rpc_call(
-            "createTask", project_id=project_id,
+        t2_ref = "phase0:deepseek"
+        
+        t2_id, t2_is_new = upsert_task(
+            t2_ref,
+            project_id=project_id,
             title="Görev 00.2: Eklenti Mimarisi ve Dizin İzolasyonu (DeepSeek Kod İncelemesi)",
             description="Kanboard hook mekanizması, Controller-Template ayrımı, SQL kancalarının tespiti.",
             color_id="purple", score=10, priority=3,
@@ -83,15 +106,18 @@ def main():
             creator_id=1, owner_id=1
         )
         if t2_id:
-            count += 1
-            f2_path = os.path.join(args.memory_dir, "deepseek_mimari_kararlar.md")
-            if os.path.isfile(f2_path):
-                with open(f2_path, "rb") as f:
-                    b64_content = base64.b64encode(f.read()).decode('ascii')
-                rpc_call("createTaskFile", project_id=project_id, task_id=t2_id, filename="deepseek_mimari_kararlar.md", blob=b64_content)
-            if prev_task_id > 0:
-                rpc_call("createTaskLink", task_id=prev_task_id, opposite_task_id=t2_id, link_id=2)
-            rpc_call("closeTask", task_id=t2_id)
+            if t2_is_new:
+                count_new += 1
+                f2_path = os.path.join(args.memory_dir, "deepseek_mimari_kararlar.md")
+                if os.path.isfile(f2_path):
+                    with open(f2_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode('ascii')
+                    rpc_call("createTaskFile", project_id=project_id, task_id=t2_id, filename="deepseek_mimari_kararlar.md", blob=b64)
+                if prev_task_id > 0:
+                    rpc_call("createTaskLink", task_id=prev_task_id, opposite_task_id=t2_id, link_id=2)
+                rpc_call("closeTask", task_id=t2_id)
+            else:
+                count_updated += 1
             prev_task_id = t2_id
 
     print("Reading git log...")
@@ -135,9 +161,10 @@ def main():
         date_due_str = (commit_time + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
         
         desc_md = f"**Otantik Forgejo Tarihçesi**\n\n{body}\n\n* Commit: {commit_hash}\n* Unix Timestamp: {commit_epoch}"
+        ref = f"commit:{commit_hash}"
         
-        task_id = rpc_call(
-            "createTask",
+        task_id, is_new = upsert_task(
+            ref,
             project_id=project_id,
             title=f"Adım {step_num}: {commit_msg}",
             description=desc_md,
@@ -150,23 +177,24 @@ def main():
         )
         
         if task_id:
-            count += 1
-            rpc_call("createSubtask", task_id=task_id, title="Değişiklikler incelendi ve test edildi.", status=2, time_estimated=2, time_spent=2, user_id=1)
-            rpc_call("createExternalTaskLink", task_id=task_id, url=f"http://localhost:3010/sencarto/ExecutiveDashboard-plugin-kanboard/commit/{commit_hash}", dependency="related", type="weblink", title=f"Forgejo: {commit_hash}")
-            rpc_call("createExternalTaskLink", task_id=task_id, url=f"https://github.com/siberaktif/ExecutiveDashboard-plugin-kanboard/commit/{commit_hash}", dependency="related", type="weblink", title=f"GitHub: {commit_hash}")
+            if is_new:
+                count_new += 1
+                rpc_call("createSubtask", task_id=task_id, title="Değişiklikler incelendi ve test edildi.", status=2, time_estimated=2, time_spent=2, user_id=1)
+                rpc_call("createExternalTaskLink", task_id=task_id, url=f"http://localhost:3010/sencarto/ExecutiveDashboard-plugin-kanboard/commit/{commit_hash}", dependency="related", type="weblink", title=f"Forgejo: {commit_hash}")
+                rpc_call("createExternalTaskLink", task_id=task_id, url=f"https://github.com/siberaktif/ExecutiveDashboard-plugin-kanboard/commit/{commit_hash}", dependency="related", type="weblink", title=f"GitHub: {commit_hash}")
+                if prev_task_id > 0:
+                    rpc_call("createTaskLink", task_id=prev_task_id, opposite_task_id=task_id, link_id=2)
+                rpc_call("closeTask", task_id=task_id)
+                print(f"Created task {task_id} for {commit_hash}")
+            else:
+                count_updated += 1
+                # print(f"Updated task {task_id} for {commit_hash}")
             
-            if prev_task_id > 0:
-                rpc_call("createTaskLink", task_id=prev_task_id, opposite_task_id=task_id, link_id=2)
-            
-            rpc_call("closeTask", task_id=task_id)
-            print(f"Created task {task_id} for {commit_hash}")
             prev_task_id = task_id
-        else:
-            print(f"Failed to create task for {commit_hash}")
             
         step_num += 1
 
-    print(f"DONE! Total tasks created: {count}")
+    print(f"DONE! Tasks Created: {count_new}, Tasks Updated: {count_updated}")
 
 if __name__ == "__main__":
     main()
