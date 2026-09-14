@@ -30,9 +30,16 @@ def main():
     parser.add_argument("--project-id", type=int, required=True)
     parser.add_argument("--repo-path", type=str, required=True)
     parser.add_argument("--memory-dir", type=str, required=False)
+    parser.add_argument("--forgejo-repo", type=str, required=True)
+    parser.add_argument("--github-repo", type=str, required=True)
+    parser.add_argument("--project-desc", type=str, required=False)
     args = parser.parse_args()
 
     project_id = args.project_id
+
+    if args.project_desc:
+        rpc_call("updateProject", project_id=project_id, description=args.project_desc)
+        print("Project description updated.")
 
     # 1. Fetch existing tasks and map references
     print("Mapping existing tasks by reference for Upsert logic...")
@@ -47,7 +54,6 @@ def main():
     def upsert_task(ref, **kwargs):
         if ref in existing_tasks:
             task_id = existing_tasks[ref]
-            # Sadece güncelle (dosyaları veya bağlantıları silmemek için)
             rpc_call("updateTask", id=task_id, title=kwargs['title'], description=kwargs['description'], color_id=kwargs['color_id'], score=kwargs['score'], priority=kwargs['priority'], date_started=kwargs['date_started'], date_due=kwargs['date_due'])
             return task_id, False
         else:
@@ -130,6 +136,9 @@ def main():
 
     commits = [c for c in raw_log.split("---") if c.strip()]
     step_num = 1
+    
+    first_date = None
+    last_date = None
 
     for commit in commits:
         lines = commit.strip().split('\n')
@@ -147,11 +156,11 @@ def main():
         score = 3
         
         msg_low = commit_msg.lower()
-        if "fix:" in msg_low or "kriz" in msg_low or "bug" in msg_low:
+        if "fix" in msg_low or "kriz" in msg_low or "bug" in msg_low or "security" in msg_low or "error" in msg_low:
             color = "red"
             priority = 3
             score = 8
-        elif "feat:" in msg_low or "refactor:" in msg_low:
+        elif "feat" in msg_low or "refactor" in msg_low or "docs" in msg_low or "chore" in msg_low:
             color = "blue"
             priority = 2
             score = 5
@@ -159,6 +168,9 @@ def main():
         commit_time = datetime.fromtimestamp(commit_epoch)
         date_started_str = commit_time.strftime("%Y-%m-%d %H:%M")
         date_due_str = (commit_time + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
+        
+        if first_date is None: first_date = date_started_str
+        last_date = date_due_str
         
         desc_md = f"**Otantik Forgejo Tarihçesi**\n\n{body}\n\n* Commit: {commit_hash}\n* Unix Timestamp: {commit_epoch}"
         ref = f"commit:{commit_hash}"
@@ -180,21 +192,27 @@ def main():
             if is_new:
                 count_new += 1
                 rpc_call("createSubtask", task_id=task_id, title="Değişiklikler incelendi ve test edildi.", status=2, time_estimated=2, time_spent=2, user_id=1)
-                rpc_call("createExternalTaskLink", task_id=task_id, url=f"http://localhost:3010/sencarto/ExecutiveDashboard-plugin-kanboard/commit/{commit_hash}", dependency="related", type="weblink", title=f"Forgejo: {commit_hash}")
-                rpc_call("createExternalTaskLink", task_id=task_id, url=f"https://github.com/siberaktif/ExecutiveDashboard-plugin-kanboard/commit/{commit_hash}", dependency="related", type="weblink", title=f"GitHub: {commit_hash}")
+                
+                f_link = f"http://localhost:3010/sencarto/{args.forgejo_repo}/commit/{commit_hash}"
+                g_link = f"https://github.com/siberaktif/{args.github_repo}/commit/{commit_hash}"
+                
+                rpc_call("createExternalTaskLink", task_id=task_id, url=f_link, dependency="related", type="weblink", title=f"Forgejo: {commit_hash}")
+                rpc_call("createExternalTaskLink", task_id=task_id, url=g_link, dependency="related", type="weblink", title=f"GitHub: {commit_hash}")
+                
                 if prev_task_id > 0:
                     rpc_call("createTaskLink", task_id=prev_task_id, opposite_task_id=task_id, link_id=2)
+                
                 rpc_call("closeTask", task_id=task_id)
                 print(f"Created task {task_id} for {commit_hash}")
             else:
                 count_updated += 1
-                # print(f"Updated task {task_id} for {commit_hash}")
             
             prev_task_id = task_id
             
         step_num += 1
 
     print(f"DONE! Tasks Created: {count_new}, Tasks Updated: {count_updated}")
+    print(f"Date Range: {first_date} to {last_date}")
 
 if __name__ == "__main__":
     main()
