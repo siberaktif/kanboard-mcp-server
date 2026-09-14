@@ -20,5 +20,6 @@ uv.lock
 # Custom ignores
 .claude/
 _python-api-client-main/
-docs/ai_chats/
 *.log
+docs/ai_chats/*
+!docs/ai_chats/.gitkeep
