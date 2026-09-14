@@ -45,3 +45,19 @@ python kanboard_mcp_server.py --status
 
 ### Automation Scripts
 Check the `scripts/` directory for ready-to-use Python scripts that automate common Kanboard workflows (e.g., bulk reordering, applying agile metrics).
+
+### Kullanılabilir MCP Araçları (Tools)
+| Araç Adı | Açıklama |
+| :--- | :--- |
+| `create_task` | Yeni görev oluşturur (başlık, açıklama, süre, puan, öncelik). |
+| `update_task` | Görev parametrelerini ve açıklamasını günceller. |
+| `create_external_task_link` | Forgejo veya GitHub harici commit bağlantısı iliştirir. |
+| `create_task_link` | Görevler arasında `blocks` / `is blocked by` kritik yol ilişkisi kurar. |
+| `close_task` | Görevi tamamlanmış olarak mühürler. |
+
+### SDLC Tarihçe Aktarıcısı (CLI)
+```bash
+python scripts/setup_project_tasks.py --project-id 7 --repo-path ~/dediaiproje/dedisoft/kanboard/plugins/ExecutiveDashboard --memory-dir docs/ai_chats/
+```
+
+*Not: `docs/ai_chats/` klasörü `.gitkeep` ile korunmaktadır ve içerisindeki yapay zeka chat logları (`.md`) izole bir şekilde saklanıp `git` tarafından yok sayılır (veya proje hafızası olarak Kanboard'a yüklenir).*
