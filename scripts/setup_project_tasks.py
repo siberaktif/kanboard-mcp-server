@@ -172,6 +172,8 @@ def main():
         if first_date is None: first_date = date_started_str
         last_date = date_due_str
         
+        f_link = f"http://localhost:3010/sencarto/{args.forgejo_repo}/commit/{commit_hash}"
+        g_link = f"https://github.com/siberaktif/{args.github_repo}/commit/{commit_hash}"
         desc_md = f"**Otantik Forgejo Tarihçesi**\n\n{body}\n\n* **Commit:** `{commit_hash}`\n* 🔗 [Yerel (Forgejo) Üzerinde İncele]({f_link})\n* 🔗 [Uzak (GitHub) Üzerinde İncele]({g_link})\n* Unix Timestamp: {commit_epoch}"
         ref = f"commit:{commit_hash}"
         
